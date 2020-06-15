@@ -587,7 +587,7 @@ BUILD_AGENT+=wazuh-modulesd
 ifeq (${MAKECMDGOALS},server)
 $(error Do not use 'server' directly, use 'TARGET=server')
 endif
-server: external
+server:
 	return 0
 
 ifeq (${MAKECMDGOALS},local)
@@ -605,7 +605,7 @@ hybrid: external
 ifeq (${MAKECMDGOALS},agent)
 $(error Do not use 'agent' directly, use 'TARGET=agent')
 endif
-agent: external
+agent: 
 	return 0
 
 ifneq (,$(filter ${USE_SELINUX},YES yes y Y 1))
@@ -628,8 +628,8 @@ ifeq (${MAKECMDGOALS},winagent)
 $(error Do not use 'winagent' directly, use 'TARGET=winagent')
 endif
 .PHONY: winagent
-winagent: external win32/libwinpthread-1.dll wazuh_modules/syscollector/syscollector_win_ext.dll
-	return 0
+winagent:
+return 0
 
 win32/libwinpthread-1.dll: ${WIN_PTHREAD_LIB}
 	cp $< $@
