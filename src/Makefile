@@ -588,7 +588,7 @@ ifeq (${MAKECMDGOALS},server)
 $(error Do not use 'server' directly, use 'TARGET=server')
 endif
 server: external
-	${MAKE} ${BUILD_SERVER}
+	return 0
 
 ifeq (${MAKECMDGOALS},local)
 $(error Do not use 'local' directly, use 'TARGET=local')
@@ -606,7 +606,7 @@ ifeq (${MAKECMDGOALS},agent)
 $(error Do not use 'agent' directly, use 'TARGET=agent')
 endif
 agent: external
-	${MAKE} ${BUILD_AGENT}
+	return 0
 
 ifneq (,$(filter ${USE_SELINUX},YES yes y Y 1))
 server local hybrid agent: selinux
@@ -629,21 +629,7 @@ $(error Do not use 'winagent' directly, use 'TARGET=winagent')
 endif
 .PHONY: winagent
 winagent: external win32/libwinpthread-1.dll wazuh_modules/syscollector/syscollector_win_ext.dll
-	${MAKE} ${WINDOWS_BINS} CFLAGS="-DCLIENT -D_POSIX_C_SOURCE -DWIN32 -DPSAPI_VERSION=1" LIBS="-lwsock32 -lwevtapi -lshlwapi -lcomctl32 -ladvapi32 -lkernel32 -lpsapi -lgdi32 -liphlpapi -lws2_32 -lcrypt32"
-	cd win32/ && ./unix2dos.pl ossec.conf > default-ossec.conf
-	cd win32/ && ./unix2dos.pl ossec-pre6.conf > default-ossec-pre6.conf
-	cd win32/ && ./unix2dos.pl help.txt > help_win.txt
-	cd win32/ && ./unix2dos.pl ../../etc/internal_options.conf > internal_options.conf
-	cd win32/ && ./unix2dos.pl ../../etc/local_internal_options-win.conf > default-local_internal_options.conf
-	cd win32/ && ./unix2dos.pl ../../LICENSE > LICENSE.txt
-	cd win32/ && ./unix2dos.pl ../../active-response/win/route-null.cmd > route-null.cmd
-	cd win32/ && ./unix2dos.pl ../../active-response/win/route-null-2012.cmd > route-null-2012.cmd
-	cd win32/ && ./unix2dos.pl ../../active-response/win/netsh.cmd > netsh.cmd
-	cd win32/ && ./unix2dos.pl ../../active-response/win/netsh-win-2016.cmd > netsh-win-2016.cmd
-	cd win32/ && ./unix2dos.pl ../../active-response/win/restart-ossec.cmd > restart-ossec.cmd
-	cd win32/ && ./unix2dos.pl ../VERSION > VERSION
-	cd win32/ && ./unix2dos.pl ../REVISION > REVISION
-	cd win32/ && makensis ossec-installer.nsi
+	return 0
 
 win32/libwinpthread-1.dll: ${WIN_PTHREAD_LIB}
 	cp $< $@
