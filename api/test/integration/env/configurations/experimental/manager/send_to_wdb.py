@@ -28,25 +28,21 @@ def get_script_arguments():
     return parser.parse_args()
 
 
-def send_query_to_wdb(query: str):
-    """Send query to WazuhDB socket.
-    :param query: Query to send
-    """
-    # connect to WazuhDB socket
+def send_query_to_wdb(msg):
+    """Send query to WazuhDB socket."""
+    msg = struct.pack('<I', len(msg)) + msg.encode()
     wdb_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     wdb_socket.connect(WDB_SOCKET_PATH)
-    # construct message
-    encoded_message = query.encode(encoding='utf-8')
-    final_message = struct.pack('<I', len(encoded_message)) + encoded_message
-    wdb_socket.send(final_message)
 
-    received = wdb_socket.recv(4096)
-    if len(received) == 4096:
-        while 1:
-            try:  # error means no more data
-                received += wdb_socket.recv(4096, socket.MSG_DONTWAIT)
-            except:
-                break
+    # Send msg
+    wdb_socket.send(msg)
+
+    # Receive response
+    data = wdb_socket.recv(4)
+    data_size = struct.unpack('<I', data[0:4])[0]
+    data = wdb_socket.recv(data_size).decode(encoding='utf-8', errors='ignore')
+    with open('/configuration_files/wdb_output', 'a+') as f:
+        f.write(data)
 
     wdb_socket.close()
 
