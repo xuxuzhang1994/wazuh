@@ -197,7 +197,9 @@ async def test_SyncWorker():
     with patch('wazuh.core.cluster.common.Handler.send_request', new=AsyncMock(return_value=b'True')):
         with patch('wazuh.core.cluster.common.Handler.send_file', new=AsyncMock(side_effect=error)):
             await sync_worker.sync()
-            assert 'Error sending files information' in caplog.records[-1].message
+            assert b'ERROR:wazuh:Error sending files information' in get_last_logger_line()
+
+    os.remove(current_path_logger)
 
 
 @pytest.mark.asyncio
