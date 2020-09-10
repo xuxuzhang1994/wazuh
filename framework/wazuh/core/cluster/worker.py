@@ -174,7 +174,7 @@ class SyncInfo:
                 if not result.startswith(self.expected_res):
                     for i in range(self.n_retries):
                         await asyncio.sleep(i * 2)
-                        self.logger.error(f"Response does not start with 'ok'. Retrying... {i}.")
+                        self.logger.error(f"Response does not start with {self.expected_res}. Retrying... {i}.")
                         result = await self.lc.execute(command=b'sendasync', data=data, wait_for_complete=False)
                         self.logger.debug(f"Master's {self.daemon} response: {result}.")
                         if result.startswith(self.expected_res):
@@ -183,7 +183,7 @@ class SyncInfo:
             except exception.WazuhException as e:
                 self.logger.error(f"Error sending information to {self.daemon}: {e}")
 
-        self.logger.info(f"Finished sending process to {self.daemon}")
+        self.logger.info(f"Finished sending process to {self.daemon}.")
 
 
 class WorkerHandler(client.AbstractClient, c_common.WazuhCommon):
