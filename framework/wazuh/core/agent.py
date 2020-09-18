@@ -36,7 +36,7 @@ class WazuhDBQueryAgents(WazuhDBQuery):
             filters = {}
         if min_select_fields is None:
             min_select_fields = {'lastKeepAlive', 'version', 'id'}
-        backend = SQLiteBackend(common.database_path_global)
+        backend = WazuhDBBackend(query_format='global')
         WazuhDBQuery.__init__(self, offset=offset, limit=limit, table='agent', sort=sort, search=search, select=select,
                               filters=filters, fields=Agent.fields, default_sort_field=default_sort_field,
                               default_sort_order='ASC', query=query, backend=backend,
@@ -507,7 +507,7 @@ class Agent:
         except Exception as e:
             raise WazuhInternalError(1748, extra_message=str(e))
 
-        return 'Agent deleted successfully.'
+        return 'Agent was successfully deleted'
 
     def _add(self, name, ip, id=None, key=None, force=-1, use_only_authd=False):
         """Adds an agent to OSSEC.
@@ -1358,7 +1358,7 @@ class Agent:
                       "New version: {2}".format(str(self.id).zfill(3), self.name, self.version)).encode(),
                      path.join(common.ossec_path, 'queue', 'ossec', 'queue'))
             s.close()
-            return "Agent upgraded successfully"
+            return "Agent was successfully upgraded"
         elif data.startswith('ok 2'):
             s.sendto(("1:wazuh-upgrade:wazuh: Upgrade procedure on agent {0} ({1}): failed: "
                       "restored to previous version".format(str(self.id).zfill(3), self.name)).encode(),
