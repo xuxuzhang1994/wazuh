@@ -104,7 +104,7 @@ class SyncInfo:
     Defines methods to send information to self.daemon in the master through sendsync command.
     """
 
-    def __init__(self, worker, daemon, logger, data_retriever: callable, msg_format='{payload}', n_retries=3,
+    def __init__(self, worker, daemon, logger, data_retriever: callable, msg_format='{payload}', n_retries=3, cmd=None,
                  expected_res='ok'):
         """Class constructor
 
@@ -116,6 +116,8 @@ class SyncInfo:
             Daemon name on the master node to which send information.
         logger : Logging object
              Logger to use during synchronization process.
+        cmd : bytes
+            Command to inform the master when the synchronization process starts and ends.
         data_retriever : Callable
             Function to be called to obtain chunks of data. It must return a list of chunks.
         msg_format : str
@@ -134,6 +136,7 @@ class SyncInfo:
         self.logger = logger
         self.data_retriever = data_retriever
         self.n_retries = n_retries
+        self.cmd = cmd
         self.expected_res = expected_res
         self.lc = local_client.LocalClient()
 
@@ -158,7 +161,11 @@ class SyncInfo:
             self.logger.error(f"Error obtaining data: {e}")
             return
 
+        if self.cmd:
+            result = await self.worker.send_request(command=self.cmd + b'_s', data=b'')
+            self.logger.debug(f"Master response for {self.cmd+b'_s'} command: {result}")
         self.logger.info(f"Starting sending information to {self.daemon}.")
+        chunks_sent = 0
         for chunk in chunks_to_send:
             data = json.dumps({
                 'daemon_name': self.daemon,
@@ -179,11 +186,17 @@ class SyncInfo:
                         self.logger.debug(f"Master's {self.daemon} response: {result}.")
                         if result.startswith(self.expected_res):
                             break
+                else:
+                    chunks_sent += 1
 
             except exception.WazuhException as e:
                 self.logger.error(f"Error sending information to {self.daemon}: {e}")
 
-        self.logger.info(f"Finished sending process to {self.daemon}.")
+        if self.cmd:
+            result = await self.worker.send_request(command=self.cmd + b'_e', data=str(chunks_sent).encode())
+            self.logger.debug(f"Master response for {self.cmd+b'_e'} command: {result}")
+
+        self.logger.info(f"Finished sending information to {self.daemon} ({chunks_sent} chunks sent).")
 
 
 class WorkerHandler(client.AbstractClient, c_common.WazuhCommon):
@@ -339,7 +352,7 @@ class WorkerHandler(client.AbstractClient, c_common.WazuhCommon):
         agent_info_logger = self.task_loggers["Agent info"]
         wdb_conn = WazuhDBConnection()
         agent_info = SyncInfo(worker=self, daemon='wazuh-db', msg_format='global sync-agent-info-set {payload}',
-                              logger=agent_info_logger, data_retriever=wdb_conn.run_wdb_command)
+                              logger=agent_info_logger, cmd=b'sync_a_w_m', data_retriever=wdb_conn.run_wdb_command)
 
         while True:
             if self.connected:
@@ -458,15 +471,14 @@ class WorkerHandler(client.AbstractClient, c_common.WazuhCommon):
         logger.debug("Agents to remove: {}".format(', '.join(agent_ids_list)))
         # the agents must be removed in groups of 997: 999 is the limit of SQL variables per query. Limit and offset are
         # always included in the SQL query, so that leaves 997 variables as limit.
-        for agents_ids_sublist in itertools.zip_longest(*itertools.repeat(iter(agent_ids_list), 997), fillvalue='0'):
+        for agents_ids_sublist in itertools.zip_longest(*itertools.repeat(iter(agent_ids_list), 500), fillvalue='0'):
             agents_ids_sublist = list(filter(lambda x: x != '0', agents_ids_sublist))
             # Get info from DB
             agent_info = Agent.get_agents_overview(q=",".join(["id={}".format(i) for i in agents_ids_sublist]),
                                                    select=['ip', 'id', 'name'], limit=None)['items']
             logger.debug2("Removing files from agents {}".format(', '.join(agents_ids_sublist)))
 
-            files_to_remove = ['{ossec_path}/queue/agent-info/{name}-{ip}',
-                               '{ossec_path}/queue/rootcheck/({name}) {ip}->rootcheck',
+            files_to_remove = ['{ossec_path}/queue/rootcheck/({name}) {ip}->rootcheck',
                                '{ossec_path}/queue/diff/{name}', '{ossec_path}/queue/agent-groups/{id}',
                                '{ossec_path}/queue/rids/{id}',
                                '{ossec_path}/var/db/agents/{name}-{id}.db']
@@ -474,18 +486,14 @@ class WorkerHandler(client.AbstractClient, c_common.WazuhCommon):
 
             logger.debug2("Removing agent group assigments from database")
             # remove agent from groups
-            db_global = glob.glob(common.database_path_global)
-            if not db_global:
-                raise WazuhInternalError(1600)
+            wdb_conn = WazuhDBConnection()
 
-            conn = Connection(db_global[0])
-            agent_ids_db = {'id_agent{}'.format(i): int(i) for i in agents_ids_sublist}
-            conn.execute('delete from belongs where {}'.format(
-                ' or '.join(['id_agent = :{}'.format(i) for i in agent_ids_db.keys()])), agent_ids_db)
-            conn.commit()
+            query_to_execute = 'global sql delete from belongs where {}'.format(' or '.join([
+                'id_agent = {}'.format(agent_id) for agent_id in agents_ids_sublist
+            ]))
+            wdb_conn.run_wdb_command(query_to_execute)
 
             # Tell wazuhbd to delete agent database
-            wdb_conn = WazuhDBConnection()
             wdb_conn.delete_agents_db(agents_ids_sublist)
 
         logger.info("Agent files removed")
