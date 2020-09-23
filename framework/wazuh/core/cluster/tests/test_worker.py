@@ -114,8 +114,7 @@ def test_remove_bulk_agents(isdir_mock, connection_mock, agents_mock, glob_mock,
     """
     agents_mock.return_value = {'totalItems': len(agents_to_remove),
                                 'items': [{'id': a_id, 'ip': '0.0.0.0', 'name': 'test'} for a_id in agents_to_remove]}
-    files_to_remove = [common.ossec_path + '/queue/agent-info/{name}-{ip}',
-                       common.ossec_path + '/queue/rootcheck/({name}) {ip}->rootcheck',
+    files_to_remove = [common.ossec_path + '/queue/rootcheck/({name}) {ip}->rootcheck',
                        common.ossec_path + '/queue/diff/{name}', common.ossec_path + '/queue/agent-groups/{id}',
                        common.ossec_path + '/queue/rids/{id}', common.ossec_path + '/var/db/agents/{name}-{id}.db',
                        'global.db']
@@ -222,14 +221,14 @@ async def test_SyncInfo(caplog):
     # Test expected exception is raised when calling LocalClient.execute().
     sync_worker = worker.SyncInfo(worker=worker_handler, daemon='test', logger=logger, data_retriever=lambda: ['test'])
     with patch('wazuh.core.cluster.local_client.LocalClient.execute', side_effect=WazuhException(1000)):
-        await check_message(expected_messages=["Finished sending process to test.",
+        await check_message(expected_messages=["Finished sending information to test (0 chunks sent).",
                                                "Error sending information to test: Error 1000 - Wazuh Internal Error"])
 
     # Test successful workflow for 2 chunks
     sync_worker = worker.SyncInfo(worker=worker_handler, daemon='test', logger=logger,
                                   msg_format='test_format {payload}', data_retriever=lambda: ['test1', 'test2'])
     with patch('wazuh.core.cluster.local_client.LocalClient.execute', return_value='ok') as mock_lc:
-        await check_message(expected_messages=["Finished sending process to test.",
+        await check_message(expected_messages=["Finished sending information to test (2 chunks sent).",
                                                "Master's test response: ok.",
                                                "Master's test response: ok.",
                                                "Starting sending information to test."])
@@ -241,18 +240,23 @@ async def test_SyncInfo(caplog):
 
     # Test unsuccessful workflow for 1 chunks
     sync_worker = worker.SyncInfo(worker=worker_handler, daemon='test', logger=logger, expected_res='test_res',
-                                  n_retries=1, data_retriever=lambda: ['test1'])
+                                  n_retries=1, data_retriever=lambda: ['test1'], cmd=b'sync_a_m_w')
     with patch('wazuh.core.cluster.local_client.LocalClient.execute', return_value='ok') as mock_lc:
-        await check_message(expected_messages=["Finished sending process to test.",
-                                               "Master's test response: ok.",
-                                               "Response does not start with test_res. Retrying... 0.",
-                                               "Master's test response: ok.",
-                                               "Starting sending information to test.",
-                                               "Obtained 1 chunks of data to be sent.",
-                                               "Obtaining data to be sent to master's test."])
-        calls = [call(command=b'sendasync', data=b'{"daemon_name": "test", "message": "test1"}', wait_for_complete=False),
-                 call(command=b'sendasync', data=b'{"daemon_name": "test", "message": "test1"}', wait_for_complete=False)]
-        mock_lc.assert_has_calls(calls)
+        with patch('wazuh.core.cluster.common.Handler.send_request', return_value='ok'):
+            await check_message(expected_messages=["Finished sending information to test (0 chunks sent).",
+                                                   "Master response for b'sync_a_m_w_e' command: ok",
+                                                   "Master's test response: ok.",
+                                                   "Response does not start with test_res. Retrying... 0.",
+                                                   "Master's test response: ok.",
+                                                   "Starting sending information to test.",
+                                                   "Master response for b'sync_a_m_w_s' command: ok",
+                                                   "Obtained 1 chunks of data to be sent.",
+                                                   "Obtaining data to be sent to master's test."])
+            calls = [
+                call(command=b'sendasync', data=b'{"daemon_name": "test", "message": "test1"}', wait_for_complete=False),
+                call(command=b'sendasync', data=b'{"daemon_name": "test", "message": "test1"}', wait_for_complete=False)
+            ]
+            mock_lc.assert_has_calls(calls)
 
 
 def test_WorkerHandler():
