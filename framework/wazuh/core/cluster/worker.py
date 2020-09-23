@@ -185,6 +185,7 @@ class SyncInfo:
                         result = await self.lc.execute(command=b'sendasync', data=data, wait_for_complete=False)
                         self.logger.debug(f"Master's {self.daemon} response: {result}.")
                         if result.startswith(self.expected_res):
+                            chunks_sent += 1
                             break
                 else:
                     chunks_sent += 1
