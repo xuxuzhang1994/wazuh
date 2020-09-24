@@ -123,6 +123,24 @@ def test_query_lower_private(send_mock, connect_mock):
 
 
 @patch("socket.socket.connect")
+def test_run_wdb_command(connect_mock):
+    with patch('wazuh.core.wdb.WazuhDBConnection._send', side_effect=[['due', 'chunk1'], ['due', 'chunk2'],
+                                                                      ['ok', 'chunk3'], ['due', 'chunk4']]):
+        mywdb = WazuhDBConnection()
+        result = mywdb.run_wdb_command("global sync-agent-info-get ")
+        assert result == ['chunk1', 'chunk2', 'chunk3']
+
+
+@patch("socket.socket.connect")
+def test_run_wdb_command_ko(connect_mock):
+    with patch('wazuh.core.wdb.WazuhDBConnection._send', side_effect=[['due', 'chunk1'], ['err', 'chunk2'],
+                                                                      ['ok', 'chunk3'], ['due', 'chunk4']]):
+        mywdb = WazuhDBConnection()
+        with pytest.raises(exception.WazuhInternalError, match=".* 2007 .* chunk2"):
+            mywdb.run_wdb_command("global sync-agent-info-get ")
+
+
+@patch("socket.socket.connect")
 @patch("socket.socket.send")
 @patch("wazuh.core.wdb.WazuhDBConnection._send")
 def test_execute(send_mock, socket_send_mock, connect_mock):
