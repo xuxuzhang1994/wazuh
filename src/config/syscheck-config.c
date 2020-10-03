@@ -947,9 +947,14 @@ static int read_attr(syscheck_config *syscheck, const char *dirs, char **g_attrs
                 strchr(real_path, '?') ||
                 strchr(real_path, '[')) {
             int gindex = 0;
+            int gstatus;
             glob_t g;
 
-            if (glob(tmp_dir, 0, NULL, &g) != 0) {
+            if (gstatus = glob(tmp_dir, 0, NULL, &g), gstatus == GLOB_NOMATCH) {
+                mdebug2(GLOB_NO_MATCH, real_path);
+                dir++;
+                continue;
+            } else if (gstatus = GLOB_NOSPACE | GLOB_ABORTED) {
                 merror(GLOB_ERROR, real_path);
                 dir++;
                 continue;
@@ -1098,7 +1103,7 @@ int read_data_unit(const char *content) {
 
             if (OS_StrIsNum(value_str)) {
                 read_value = atoi(value_str);
-                
+
                 switch (content[len_value_str - 2]) {
                     case 'M':
                         // Fallthrough
