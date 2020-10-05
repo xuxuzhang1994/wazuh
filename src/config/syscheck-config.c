@@ -955,7 +955,7 @@ static int read_attr(syscheck_config *syscheck, const char *dirs, char **g_attrs
                 mdebug2(GLOB_NO_MATCH, real_path);
                 dir++;
                 continue;
-            } else if (gstatus = GLOB_NOSPACE | GLOB_ABORTED) {
+            } else if (gstatus != 0) {
                 merror(GLOB_ERROR, real_path);
                 dir++;
                 continue;
