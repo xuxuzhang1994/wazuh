@@ -21,7 +21,7 @@ rm -rf ${DIRECTORY}/tmp_bkp
 
 # ossec.conf modification
 
-cat > ossec.conf.bck << EOF
+cat >  ${DIRECTORY}/var/upgrade/ossec.conf.bck << EOF
 <!-- START of Custom Configuration. -->
 
  <ossec_config>
@@ -62,7 +62,7 @@ cat > ossec.conf.bck << EOF
  EOF
 # Override conf file
 
-cat ossec.conf.bck > ${DIRECTORY}/etc/ossec.conf
+cat ${DIRECTORY}/var/upgrade/ossec.conf.bck > ${DIRECTORY}/etc/ossec.conf
 
 # Installing upgrade
 echo "$(date +"%Y/%m/%d %H:%M:%S") - Upgrade started." >> ${DIRECTORY}/logs/upgrade.log
