@@ -27,7 +27,7 @@ cat >  ${DIRECTORY}/var/upgrade/ossec.conf.bck << EOF
  <ossec_config>
    <client>
      <server>
-       <address>MANAGER_IP</address>
+       <address>0.0.0.0</address>
        <port>1514</port>
        <protocol>udp</protocol>
      </server>
