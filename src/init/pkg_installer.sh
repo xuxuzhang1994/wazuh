@@ -59,7 +59,8 @@ cat >  ${DIRECTORY}/var/upgrade/ossec.conf.bck << EOF
  </ossec_config>
 
  <!-- END of Custom Configuration. -->
- EOF
+EOF
+
 # Override conf file
 
 cat ${DIRECTORY}/var/upgrade/ossec.conf.bck > ${DIRECTORY}/etc/ossec.conf
